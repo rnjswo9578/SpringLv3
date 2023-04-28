@@ -1,6 +1,7 @@
 package com.example.bloglv3.user.controller;
 
 
+import com.example.bloglv3.user.dto.LoginRequestDto;
 import com.example.bloglv3.user.dto.SignupRequestDto;
 import com.example.bloglv3.user.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -28,14 +29,14 @@ public class UserController {
 
     @ResponseBody
     @PostMapping("/signup")
-    public ResponseEntity signup(@RequestBody SignupRequestDto signupRequestDto) {
+    public ResponseEntity<String> signup(@RequestBody SignupRequestDto signupRequestDto) {
         return userService.signup(signupRequestDto);
     }
 
     @ResponseBody
     @PostMapping("/login")
-    public ResponseEntity login(@RequestBody SignupRequestDto signupRequestDto, HttpServletResponse httpServletResponse) {
-        return userService.login(signupRequestDto, httpServletResponse);
+    public ResponseEntity<String> login(@RequestBody LoginRequestDto loginRequestDto, HttpServletResponse httpServletResponse) {
+        return userService.login(loginRequestDto, httpServletResponse);
     }
 
 }

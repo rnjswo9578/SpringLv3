@@ -1,6 +1,7 @@
 package com.example.bloglv3.user.service;
 
 import com.example.bloglv3.global.jwt.JwtUtil;
+import com.example.bloglv3.user.dto.LoginRequestDto;
 import com.example.bloglv3.user.dto.SignupRequestDto;
 import com.example.bloglv3.user.entity.User;
 import com.example.bloglv3.user.entity.UserRoleEnum;
@@ -21,22 +22,20 @@ public class UserService {
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
 
+    private static final String ADMIN_TOKEN = "AAABnvxRVklrnYxKZ0aHgTBcXukeZygoC";
 
     @Transactional
-    public ResponseEntity signup(SignupRequestDto signupRequestDto) {
+    public ResponseEntity<String> signup(SignupRequestDto signupRequestDto) {
         String username = signupRequestDto.getUsername();
-//        String password = signupRequestDto.getPassword();
-//        아이디 비밀번호 유효성 확인
-//        @Pattern 같은 어노테이션으로 가능
-//        if (username.length() < 4 || username.length() > 10 || !Pattern.matches("[a-z0-9]*$", username)) {
-//            throw new IllegalArgumentException("이미 회원이 있습니다!");
-//        }
-//        if (password.length() < 8 || password.length() > 15 || !Pattern.matches("[A-Za-z0-9]*$", password)) {
-//            throw new IllegalArgumentException("이미 회원이 있습니다!");
-//        }
 
         if (userRepository.findByUsername(username).isPresent()) {
             throw new IllegalArgumentException("이미 회원이 있습니다!");
+        }
+
+        if(signupRequestDto.getUserRole().equals(UserRoleEnum.ADMIN)){
+            if(!signupRequestDto.getAdminToken().equals(ADMIN_TOKEN)){
+                throw new IllegalArgumentException("관리자 키가 틀립니다");
+            }
         }
 
         userRepository.saveAndFlush(new User(signupRequestDto));
@@ -49,15 +48,19 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public ResponseEntity login(SignupRequestDto signupRequestDto, HttpServletResponse httpServletResponse) {
-        String username = signupRequestDto.getUsername();
-        UserRoleEnum role = signupRequestDto.getUserRole();
+    public ResponseEntity<String> login(LoginRequestDto loginRequestDto, HttpServletResponse httpServletResponse) {
+        String username = loginRequestDto.getUsername();
+        String password = loginRequestDto.getPassword();
 
         User user = userRepository.findByUsername(username).orElseThrow(
                 () -> new IllegalArgumentException("등록된 사용자가 없습니다.")
         );
 
-        String token = jwtUtil.createToken(username, role);
+        if (!user.getPassword().equals(password)) {
+            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+        }
+
+        String token = jwtUtil.createToken(user.getUsername(), user.getUserRole());
         httpServletResponse.addHeader(JwtUtil.AUTHORIZATION_HEADER, token);
 
         return new ResponseEntity<>("로그인 성공", HttpStatus.OK);

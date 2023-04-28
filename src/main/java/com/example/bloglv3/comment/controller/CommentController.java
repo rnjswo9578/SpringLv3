@@ -33,7 +33,7 @@ public class CommentController {
     }
 
     @DeleteMapping("/comment/{id}")
-    public ResponseEntity deleteComment(@PathVariable Long id, HttpServletRequest httpServletRequest) {
+    public ResponseEntity<String> deleteComment(@PathVariable Long id, HttpServletRequest httpServletRequest) {
         return commentService.deleteComment(id, httpServletRequest);
     }
 }

@@ -31,18 +31,6 @@ public class PostService {
     private final PostRepository postRepository;
     private final JwtUtil jwtUtil;
 
-    private Post getPostOrElseThrow(Long id) {
-        return postRepository.findById(id).orElseThrow(
-                () -> new IllegalArgumentException("post 가 없습니다!")
-        );
-    }
-    private User getUserOrElseThrow(Claims claims) {
-        return userRepository.findByUsername(claims.getSubject()).orElseThrow(
-                () -> new IllegalArgumentException("사용자가 존재하지 않습니다.")
-        );
-    }
-
-
     public List<PostResponseDto> getPosts(Pageable pageable) {
         return postRepository.findAll(pageable).getContent().stream().map(PostResponseDto::new).collect(Collectors.toList());
     }
@@ -53,79 +41,70 @@ public class PostService {
 
     @Transactional
     public PostResponseDto createPost(PostRequestDto postRequestDto, HttpServletRequest httpServletRequest) {
-        String token = jwtUtil.resolveToken(httpServletRequest);
-        Claims claims;
+        User user = getUserByTokenInHttpRequest(httpServletRequest);
+        Post post = new Post(postRequestDto);
+        post.addUser(user);
 
-        if (token != null) {
-            if (jwtUtil.validateToken(token)) {
-                claims = jwtUtil.getUserInfoFromToken(token);
-            } else {
-                throw new IllegalArgumentException("토큰 오류");
-            }
-
-            User user = getUserOrElseThrow(claims);
-
-            Post post = new Post(postRequestDto);
-            post.addUser(user);
-
-            Long id = postRepository.saveAndFlush(post).getId();
-            return new PostResponseDto(getPostOrElseThrow(id));
-        }
-        return null;
+        Long id = postRepository.saveAndFlush(post).getId();
+        return new PostResponseDto(getPostOrElseThrow(id));
     }
 
     @Transactional
     public PostResponseDto updatePost(Long id, PostRequestDto postRequestDto, HttpServletRequest httpServletRequest) {
-        String token = jwtUtil.resolveToken(httpServletRequest);
-        Claims claims;
+        User user = getUserByTokenInHttpRequest(httpServletRequest);
+        Post post = getPostOrElseThrow(id);
 
-        if (token != null) {
-            if (jwtUtil.validateToken(token)) {
-                claims = jwtUtil.getUserInfoFromToken(token);
-            } else {
-                throw new IllegalArgumentException("토큰 오류");
-            }
-            User user = getUserOrElseThrow(claims);
-            Post post = postRepository.findByIdAndUserId(id, user.getId()).orElseThrow(
-                    () -> new IllegalArgumentException("해당 post 가 없습니다!")
-            );
-
-            if (user.getUsername().equals(post.getUser().getUsername()) || user.getUserRole().equals(UserRoleEnum.ADMIN)) {
-                post.update(postRequestDto);
-            }
-
-            return new PostResponseDto(post);
+        if (user.getUsername().equals(post.getUser().getUsername()) || user.getUserRole().equals(UserRoleEnum.ADMIN)) {
+            post.update(postRequestDto);
         }
-        throw  new IllegalArgumentException("post 업데이트 오류!");
+
+        return new PostResponseDto(post);
     }
 
     @Transactional
     public ResponseEntity<RestApiException> deletePost(Long id, HttpServletRequest httpServletRequest) {
-        String token = jwtUtil.resolveToken(httpServletRequest);
-        Claims claims;
+        User user = getUserByTokenInHttpRequest(httpServletRequest);
+        Post post = getPostOrElseThrow(id);
 
-        if (token != null) {
-            if (jwtUtil.validateToken(token)) {
-                claims = jwtUtil.getUserInfoFromToken(token);
-            } else {
-                throw new IllegalArgumentException("토큰 오류");
-            }
-            User user = getUserOrElseThrow(claims);
-            Post post = postRepository.findByIdAndUserId(id, user.getId()).orElseThrow(
-                    () -> new IllegalArgumentException("해당 post 가 없습니다!")
-            );
-
-
-            if (user.getUsername().equals(post.getUser().getUsername()) || user.getUserRole().equals(UserRoleEnum.ADMIN)) {
-                postRepository.delete(post);
-            }
-
-            RestApiException restApiException = new RestApiException();
-            restApiException.setErrorMessage("삭제 성공");
-            restApiException.setHttpStatus(HttpStatus.OK);
-
-            return new ResponseEntity<>(restApiException, HttpStatus.OK);
+        if (user.getUsername().equals(post.getUser().getUsername()) || user.getUserRole().equals(UserRoleEnum.ADMIN)) {
+            postRepository.delete(post);
         }
-        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+
+        RestApiException restApiException = new RestApiException();
+        restApiException.setErrorMessage("삭제 성공");
+        restApiException.setHttpStatus(HttpStatus.OK);
+
+        return new ResponseEntity<>(restApiException, HttpStatus.OK);
     }
+
+
+
+
+
+
+    private User getUserByTokenInHttpRequest(HttpServletRequest httpServletRequest) {
+        String token = jwtUtil.resolveToken(httpServletRequest);
+        if (token == null) {
+            throw new IllegalArgumentException("토큰이 없습니다!");
+        }
+        if (!jwtUtil.validateToken(token)) {
+            throw new IllegalArgumentException("토큰이 유효하지 않습니다!");
+        }
+        Claims claims = jwtUtil.getUserInfoFromToken(token);
+
+        return getUserOrElseThrow(claims);
+    }
+
+    private Post getPostOrElseThrow(Long id) {
+        return postRepository.findById(id).orElseThrow(
+                () -> new IllegalArgumentException("post 가 없습니다!")
+        );
+    }
+
+    private User getUserOrElseThrow(Claims claims) {
+        return userRepository.findByUsername(claims.getSubject()).orElseThrow(
+                () -> new IllegalArgumentException("사용자가 존재하지 않습니다.")
+        );
+    }
+
 }

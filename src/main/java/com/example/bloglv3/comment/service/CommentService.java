@@ -28,31 +28,10 @@ public class CommentService {
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
 
-    private Claims checkToken(HttpServletRequest httpServletRequest) {
-        Claims claims;
-        String token = jwtUtil.resolveToken(httpServletRequest);
-        if (token == null) {
-            throw new IllegalArgumentException("토큰 오류");
-        }
-        if (!jwtUtil.validateToken(token)) {
-            throw new IllegalArgumentException("토큰 오류");
-        }
-
-        claims = jwtUtil.getUserInfoFromToken(token);//getUserInfoFromToken{sub=membername123, exp=1682597413, iat=1682593813}
-        return claims;
-    }
-
-    private User checkUser(Claims claims) {
-        return userRepository.findByUsername(claims.getSubject()).orElseThrow(
-                () -> new IllegalArgumentException("User 가 없습니다!")
-        );
-    }
-
     @Transactional
     public CommentResponseDto createComment(CommentRequestDto commentRequestDto, HttpServletRequest httpServletRequest) {
-        Claims claims = checkToken(httpServletRequest);
+        User user  = getUserByTokenInHttpRequest(httpServletRequest);
 
-        User user = checkUser(claims);
         Post post = postRepository.findById(commentRequestDto.getPostId()).orElseThrow(
                 () -> new IllegalArgumentException("post 가 없습니다!")
         );
@@ -69,9 +48,8 @@ public class CommentService {
 
     @Transactional
     public CommentResponseDto updateComment( Long id, CommentRequestDto commentRequestDto, HttpServletRequest httpServletRequest) {
-        Claims claims  = checkToken(httpServletRequest);
+        User user  = getUserByTokenInHttpRequest(httpServletRequest);
 
-        User user = checkUser(claims);
         Comment comment = commentRepository.findById(id).orElseThrow(
                 () -> new IllegalArgumentException("Comment 가 없습니다!")
         );
@@ -85,10 +63,9 @@ public class CommentService {
     }
 
     @Transactional
-    public ResponseEntity deleteComment(Long id, HttpServletRequest httpServletRequest) {
-        Claims claims = checkToken(httpServletRequest);
+    public ResponseEntity<String> deleteComment(Long id, HttpServletRequest httpServletRequest) {
+        User user  = getUserByTokenInHttpRequest(httpServletRequest);
 
-        User user = checkUser(claims);
         Comment comment = commentRepository.findById(id).orElseThrow(
                 () -> new IllegalArgumentException("Comment 가 없습니다!")
         );
@@ -101,6 +78,27 @@ public class CommentService {
         return new ResponseEntity<>("댓글 삭제 실패", HttpStatus.BAD_REQUEST);
     }
 
+
+
+    private User getUserByTokenInHttpRequest(HttpServletRequest httpServletRequest) {
+        Claims claims;
+        String token = jwtUtil.resolveToken(httpServletRequest);
+        if (token == null) {
+            throw new IllegalArgumentException("토큰 오류");
+        }
+        if (!jwtUtil.validateToken(token)) {
+            throw new IllegalArgumentException("토큰 오류");
+        }
+
+        claims = jwtUtil.getUserInfoFromToken(token);
+        return getUserOrElseThrow(claims);
+    }
+
+    private User getUserOrElseThrow(Claims claims) {
+        return userRepository.findByUsername(claims.getSubject()).orElseThrow(
+                () -> new IllegalArgumentException("사용자가 존재하지 않습니다.")
+        );
+    }
 }
-//comment.getUser().getUsername().equals(user.getUsername()) || user.getRole() == UserRoleEnum.ADMIN
+
 

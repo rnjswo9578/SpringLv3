@@ -1,12 +1,9 @@
 package com.example.bloglv3.user.entity;
 
-
-
 import com.example.bloglv3.user.dto.SignupRequestDto;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
 
 @Getter
 @Entity(name = "users")
@@ -16,7 +13,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String username;
 
     @Column(nullable = false)
